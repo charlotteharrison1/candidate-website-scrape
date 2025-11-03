@@ -1,0 +1,62 @@
+---
+layout: null
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title> {{ site.title }}</title>
+  <link rel="stylesheet" href="{{ site.baseurl }}/assets/css/style.css">
+</head>
+<body>
+  <h1>Candidate website search</h1>
+  
+  <p>
+  You can enter search terms below. Any page on candidate websites that contains this term will be visualised below. <br> You can also filter for specific candidates based on party on the left handside once you enter a search term. 
+</p>
+  
+<div class="search-container">
+    <input id="searchBox" type="text" placeholder="Enter search term(s), comma-separated">
+    <button onclick="addSearchTerms()">Add</button>
+    <button id="exportButton" onclick="exportResults()" disabled>Export CSV</button>
+    <div id="searchTerms"></div>
+  </div>
+  
+  <hr class="divider">
+
+  <div class="main-content">
+    <div id="typePanel"></div>
+
+    <!-- Right panel: results -->
+    <div id="results"></div>
+    
+    <div id="loadingIndicator" class="spinner-container" style="display: none;">
+  <svg class="spinner" viewBox="0 0 50 50">
+    <circle class="spinner-bg" cx="25" cy="25" r="20"></circle>
+    <circle class="spinner-fg" cx="25" cy="25" r="20"></circle>
+  </svg>
+  <div class="spinner-text">Loading data...</div>
+</div>
+    
+  </div>
+  
+  <p class="footer-info"> This website allows you to search scraped data from candidate websites. It was scraped in April 2025, and the candidate list was obtained from https://candidates.democracyclub.org.uk/.<br> <strong>Disclaimer: this website visualised scraped data which has not been manually checked, so using this website is at your own risk. The html is sandboxed, so should theoretically not be able to make any requests. ChatGPT was used in building this website.</strong></p>
+
+<script>
+  const jsonFiles = [
+    {% for file in site.static_files %}
+      {% if file.path contains '/assets/json/' and file.extname == '.json' %}
+        "{{ site.baseurl }}{{ file.path }}"{% unless forloop.last %},{% endunless %}
+      {% endif %}
+    {% endfor %}
+  ];
+</script>
+<script>
+  const CSV_URL = "{{ '/assets/data/candidates.csv' | relative_url }}";
+</script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="{{ site.baseurl }}/assets/js/search.js"></script>
+</body>
+</html>
+

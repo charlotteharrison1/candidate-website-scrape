@@ -1,0 +1,154 @@
+/* Base styles */
+body {
+  font-family: sans-serif;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  line-height: 1.5;
+  text-align: center; /* center header + search */
+}
+
+input {
+  width: 300px;
+  padding: 5px;
+  margin-right: 5px;
+}
+
+#results h2 {
+  margin-top: 1.5rem;
+  border-bottom: 1px solid #ccc;
+}
+
+details {
+  margin-left: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+#searchTerms {
+  margin: 1rem 0;
+}
+
+.search-term {
+  display: inline-block;
+  color: #fff;
+  padding: 5px 10px;
+  margin: 3px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+}
+
+.search-term button {
+  background: none;
+  border: none;
+  margin-left: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  color: #fff;
+}
+
+/* Layout */
+.search-container {
+  margin-top: 1rem;
+}
+
+.main-content {
+  display: flex;
+  justify-content: flex-start; /* left-align panels */
+  align-items: flex-start;
+  margin: 50px auto 0 auto; /* 50px gap below search */
+  text-align: left; /* inner text left-aligned */
+  width: 80%; /* use 80% of the screen */
+  max-width: 1400px; /* optional: prevent too wide on huge screens */
+}
+
+#typePanel {
+  flex: 0 0 auto; /* size to fit content */
+  white-space: nowrap; /* keep counts on one line */
+  padding-right: 50px;
+  border-right: 1px solid #ccc;
+}
+
+#results {
+  flex: 1; /* take the rest */
+  padding-left: 50px;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #ccc;
+  margin: 20px 0 50px 0;
+  width: 100vw;            /* full viewport width */
+  position: relative;       /* optional, ensures layout flow */
+  left: 0;                  /* align with viewport left */
+  margin-left: calc(-50vw + 50%); /* centers it across viewport */
+}
+
+
+.type-entry {
+  cursor: pointer;
+  transition: font-weight 0.2s;
+}
+
+.type-entry:hover {
+  font-weight: bold;
+}
+
+.footer-info {
+  position: fixed;
+  bottom: 0;           /* flush with bottom */
+  left: 0;
+  width: 100%;
+  background-color: #f8f8f8;
+  color: #666;
+  font-size: 0.85em;
+  text-align: center;
+  padding: 8px 0;       /* small vertical padding */
+  border-top: 1px solid #ddd; /* optional top border */
+  box-shadow: 0 -1px 3px rgba(0,0,0,0.05); 
+  z-index: 1000;
+  margin: 0;            /* ensure no margin at bottom */
+}
+
+/* Center the spinner + text together */
+.spinner-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* horizontal centering */
+}
+
+/* Spinner size */
+.spinner {
+  width: 180px;
+  height: 180px;
+}
+
+/* Background circle */
+.spinner-bg {
+  fill: none;
+  stroke: #eee;
+  stroke-width: 4;
+}
+
+/* Foreground circle (progress) */
+.spinner-fg {
+  fill: none;
+  stroke: #3498db;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 125.6; /* 2πr = 2 * π * 20 */
+  stroke-dashoffset: 125.6; /* start empty */
+  transition: stroke-dashoffset 0.2s ease;
+}
+
+/* Text below spinner */
+.spinner-text {
+  margin-top: 10px;           /* distance below circle */
+  font-size: 0.9rem;
+  color: rgba(0,0,0,0.5);     /* soft/opaque */
+  text-align: center;
+  font-family: sans-serif;
+}
+
