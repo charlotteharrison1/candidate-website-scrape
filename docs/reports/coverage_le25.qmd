@@ -1,0 +1,353 @@
+---
+title: "Candidate Website Data"
+subtitle: "UK May 2025 Local Elections"
+date: today
+format: 
+  html:
+    toc: true
+    code-fold: true
+    theme: cosmo
+    embed-resources: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(jsonlite)
+library(here)
+library(networkD3)
+library(DT)
+
+source(here("docs/scripts/load_websites.R"))
+```
+
+```{r}
+#| label: load-data
+
+# Load all candidates from Democracy Club
+all_candidates <- read.csv(here("assets/data/candidatesfull_25-12-12.csv"))
+local_all <- all_candidates[all_candidates$election_date == "2025-05-01", ]
+
+# Load scraped websites
+local_2025 <- load_candidate_websites(
+    candidates_file = here("assets/data/candidates.csv"),
+    json_dirs = c(here("assets/json"), here("assets/large_json")),
+  election_filter = "2025-05-01",
+  keep_vars = c("person_id", "person_name", "party_name", "homepage_url")
+)
+
+# Merge to identify missing
+local_all <- merge(
+  local_all, 
+  data.frame(person_id = local_2025$person_id, has_scraped_data = TRUE),
+  by = "person_id",
+  all.x = TRUE
+)
+local_all$has_scraped_data[is.na(local_all$has_scraped_data)] <- FALSE
+```
+
+# Coverage 
+```{r}
+#| label: coverage-stats
+
+# Total candidates in May 2025 locals
+n_total <- nrow(local_all)
+
+# Candidates with homepage URLs in Democracy Club
+n_with_urls <- sum(!is.na(local_all$homepage_url) & local_all$homepage_url != "")
+
+# Candidates with scraped data
+n_scraped <- sum(local_all$has_scraped_data)
+
+# Coverage rates
+url_coverage <- n_with_urls / n_total * 100
+scrape_coverage <- n_scraped / n_total * 100
+scrape_success <- n_scraped / n_with_urls * 100
+
+coverage_summary <- data.frame(
+  Metric = c("Total candidates", 
+             "Candidates with homepage URLs", 
+             "Candidates with scraped websites",
+             "Scraping success rate"),
+  Count = c(n_total, n_with_urls, n_scraped, NA),
+  Percentage = c(NA, url_coverage, scrape_coverage, scrape_success)
+)
+
+knitr::kable(coverage_summary, 
+             col.names = c("Metric", "N", "% of total"),
+             digits = 1,
+             format.args = list(big.mark = ","))
+```
+
+## Coverage by party
+
+```{r}
+#| label: party-groups
+
+local_all$party_group <- ifelse(local_all$party_name == "Labour Party", "LAB",
+                       ifelse(local_all$party_name == "Labour and Co-operative Party", "LAB",
+                       ifelse(local_all$party_name == "Conservative and Unionist Party", "CON",
+                       ifelse(local_all$party_name == "Liberal Democrats", "LDM",
+                       ifelse(local_all$party_name == "Reform UK", "REF",
+                       ifelse(local_all$party_name == "Green Party", "GRN",
+                       ifelse(local_all$party_name == "Scottish National Party (SNP)", "SNP",
+                       ifelse(local_all$party_name == "Plaid Cymru - The Party of Wales", "PLD",
+                       ifelse(local_all$party_name == "Democratic Unionist Party - D.U.P.", "DUP",
+                       ifelse(local_all$party_name == "Sinn Féin", "SF",
+                       "Other"))))))))))
+
+local_2025$party_group <- ifelse(local_2025$party_name == "Labour Party", "LAB",
+                       ifelse(local_2025$party_name == "Labour and Co-operative Party", "LAB",
+                       ifelse(local_2025$party_name == "Conservative and Unionist Party", "CON",
+                       ifelse(local_2025$party_name == "Liberal Democrats", "LDM",
+                       ifelse(local_2025$party_name == "Reform UK", "REF",
+                       ifelse(local_2025$party_name == "Green Party", "GRN",
+                       ifelse(local_2025$party_name == "Scottish National Party (SNP)", "SNP",
+                       ifelse(local_2025$party_name == "Plaid Cymru - The Party of Wales", "PLD",
+                       ifelse(local_2025$party_name == "Democratic Unionist Party - D.U.P.", "DUP",
+                       ifelse(local_2025$party_name == "Sinn Féin", "SF",
+                       "Other"))))))))))
+```
+
+```{r}
+#| label: coverage-by-party
+
+coverage_by_party <- aggregate(
+  list(
+    total = rep(1, nrow(local_all)),
+    has_url = (!is.na(local_all$homepage_url) & local_all$homepage_url != "") * 1,
+    has_scraped = local_all$has_scraped_data * 1
+  ),
+  by = list(party_group = local_all$party_group),
+  FUN = sum
+)
+
+coverage_by_party$url_pct <- coverage_by_party$has_url / coverage_by_party$total * 100
+coverage_by_party$scraped_pct <- coverage_by_party$has_scraped / coverage_by_party$total * 100
+coverage_by_party$success_rate <- coverage_by_party$has_scraped / coverage_by_party$has_url * 100
+
+coverage_by_party <- coverage_by_party[order(-coverage_by_party$total), ]
+```
+
+```{r}
+#| label: fig-coverage-by-party
+#| fig-width: 10
+#| fig-height: 6
+
+# Define party colors
+party_colors <- c(
+  "LAB" = "#E4003B",
+  "CON" = "#0087DC", 
+  "LDM" = "#FAA61A",
+  "REF" = "#12B6CF",
+  "GRN" = "#6AB023",
+  "SNP" = "#FDF38E",
+  "PLD" = "#008142",
+  "DUP" = "#D46A4C",
+  "SF" = "#326760"
+)
+
+# Filter out "Other"
+coverage_filtered <- coverage_by_party[coverage_by_party$party_group != "Other", ]
+
+# Create ordering based on total candidates
+total_order <- coverage_filtered$party_group[order(-coverage_filtered$total)]
+
+# Create stacked data
+coverage_long <- data.frame(
+  party_group = rep(coverage_filtered$party_group, 3),
+  type = rep(c("Successfully scraped", "URL not scraped", "No URL"), each = nrow(coverage_filtered)),
+  count = c(
+    coverage_filtered$has_scraped,
+    coverage_filtered$has_url - coverage_filtered$has_scraped,
+    coverage_filtered$total - coverage_filtered$has_url
+  )
+)
+
+coverage_long$party_group <- factor(coverage_long$party_group, levels = total_order)
+
+coverage_long$type <- factor(coverage_long$type, 
+                              levels = c("Successfully scraped", "URL not scraped", "No URL"))
+
+coverage_long$alpha <- ifelse(coverage_long$type == "Successfully scraped", 1,
+                       ifelse(coverage_long$type == "URL not scraped", 0.6, 0.3))
+
+ggplot(coverage_long, aes(x = party_group, y = count, 
+                          fill = party_group, alpha = alpha)) +
+  geom_col(position = "stack") +
+  geom_text(aes(label = count), 
+            position = position_stack(vjust = 0.5),
+            color = "black", size = 3) +
+  scale_fill_manual(values = party_colors) +
+  scale_alpha_identity() +
+  labs(
+    title = "Candidate website coverage by party",
+    subtitle = "May 2025 Local Elections (darkest = scraped, medium = URL not scraped, lightest = no URL)",
+    x = "Party",
+    y = "Number of candidates",
+    fill = "Party"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "right")
+```
+
+```{r}
+#| label: coverage-by-party-print
+
+coverage_by_party_display <- coverage_by_party[coverage_by_party$party_group != "Other", ]
+coverage_by_party_other <- coverage_by_party[coverage_by_party$party_group == "Other", ]
+coverage_by_party_display <- rbind(coverage_by_party_display, coverage_by_party_other)
+
+datatable(coverage_by_party_display, 
+          colnames = c("Party", "N Candidates", "N URLs", "N scraped", 
+                       "% Candidates with URL", "% Candidates scraped", "% URLs scraped"),
+          rownames = FALSE,
+          options = list(
+            pageLength = nrow(coverage_by_party_display),
+            dom = 't',
+            order = list(list(1, 'desc'))
+          )) %>%
+  formatRound(columns = c(5, 6, 7), digits = 1)
+```
+
+## Attrition 
+
+```{r}
+#| label: fig-sankey-attrition
+#| fig-width: 10
+#| fig-height: 10
+
+# Calculate attrition numbers
+n_no_url <- n_total - n_with_urls
+n_scrape_fail <- n_with_urls - n_scraped
+
+# Create nodes
+nodes <- data.frame(
+  name = c(
+    "All candidates",           # 0
+    "Has URL",                  # 1
+    "No URL",                   # 2
+    "Successfully scraped",     # 3
+    "Scraping failed"           # 4
+  )
+)
+
+# Create links
+links <- data.frame(
+  source = c(0, 0, 1, 1),
+  target = c(1, 2, 3, 4),
+  value = c(n_with_urls, n_no_url, n_scraped, n_scrape_fail)
+)
+
+# Create color scale (neutral grays)
+color_scale <- 'd3.scaleOrdinal()
+  .range(["#808080", "#999999", "#b3b3b3", "#cccccc", "#666666"])'
+
+# Create Sankey
+sankeyNetwork(
+  Links = links,
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  units = "candidates",
+  fontSize = 12,
+  nodeWidth = 30,
+  colourScale = color_scale
+)
+```
+
+```{r}
+#| label: fig-sankey-major-parties-colored
+#| fig-width: 15
+#| fig-height: 20
+
+# Filter to major parties
+major_parties <- c("LAB", "CON", "LDM", "REF", "GRN")
+party_attrition <- coverage_by_party[coverage_by_party$party_group %in% major_parties, ]
+
+# Create nodes
+nodes <- data.frame(
+  name = c(
+    "All candidates",                                         # 0: Source
+    party_attrition$party_group,                              # 1-5: Party nodes
+    paste(party_attrition$party_group, "Has URL"),            # 6-10
+    paste(party_attrition$party_group, "No URL"),             # 11-15
+    paste(party_attrition$party_group, "Scraped"),            # 16-20
+    paste(party_attrition$party_group, "Failed")              # 21-25
+  )
+)
+
+# Add party colors to nodes
+party_colors <- c(
+  "LAB" = "#E4003B",
+  "CON" = "#0087DC", 
+  "LDM" = "#FAA61A",
+  "REF" = "#12B6CF",
+  "GRN" = "#6AB023"
+)
+
+nodes$group <- c(
+  "All",                                            # All candidates
+  party_attrition$party_group,                      # Party nodes
+  party_attrition$party_group,                      # Has URL
+  party_attrition$party_group,                      # No URL
+  party_attrition$party_group,                      # Scraped
+  party_attrition$party_group                       # Failed
+)
+
+# Create links
+n_parties <- nrow(party_attrition)
+
+links <- data.frame(
+  source = c(
+    rep(0, n_parties),            # All candidates to each party
+    1:(n_parties),                # Party to Has URL
+    1:(n_parties),                # Party to No URL
+    6:(6+n_parties-1),            # Has URL to Scraped
+    6:(6+n_parties-1)             # Has URL to Failed
+  ),
+  target = c(
+    1:(n_parties),                # Party nodes
+    6:(6+n_parties-1),            # Has URL nodes
+    11:(11+n_parties-1),          # No URL nodes
+    16:(16+n_parties-1),          # Scraped nodes
+    21:(21+n_parties-1)           # Failed nodes
+  ),
+  value = c(
+    party_attrition$total,
+    party_attrition$has_url,
+    party_attrition$total - party_attrition$has_url,
+    party_attrition$has_scraped,
+    party_attrition$has_url - party_attrition$has_scraped
+  )
+)
+
+# Remove zero-value links
+links <- links[links$value > 0, ]
+
+# Create color scale
+color_scale <- paste0('d3.scaleOrdinal()
+  .domain(["All", "LAB", "CON", "LDM", "REF", "GRN"])
+  .range(["#999999", "', party_colors["LAB"], '", "', 
+         party_colors["CON"], '", "', party_colors["LDM"], '", "', 
+         party_colors["REF"], '", "', party_colors["GRN"], '"])')
+
+sankeyNetwork(
+  Links = links,
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  NodeGroup = "group",
+  units = "candidates",
+  fontSize = 11,
+  nodeWidth = 25,
+  nodePadding = 10,
+  colourScale = color_scale
+)
+```

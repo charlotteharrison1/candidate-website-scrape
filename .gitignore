@@ -18,3 +18,5 @@ node_modules/
 # Optional: ignore other temporary files
 *.tmp
 *.swp
+
+todo.md
