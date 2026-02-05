@@ -78,6 +78,7 @@ details {
 }
 
 .search-mode-select {
+  display: inline-block;
   padding: 4px 6px;
   font-size: 0.9rem;
 }
@@ -95,7 +96,7 @@ details {
 #typePanel {
   flex: 0 0 auto; /* size to fit content */
   white-space: nowrap; /* keep counts on one line */
-  padding-right: 50px;
+  padding-right: 10px;
   border-right: 1px solid #ccc;
 }
 
