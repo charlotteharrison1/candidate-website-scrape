@@ -9,6 +9,19 @@ let currentMatches = [];
 let textCache = {}; // { file: { subpath: textOnly } }
 let dataLoaded = false;
 let dataLoading = null;
+const partyColors = {
+  "Conservative and Unionist Party": "#0087dc",
+  "Labour Party": "#e4003b",
+  "Liberal Democrats": "#fdbb30",
+  "Green Party": "#6ab023",
+  "Green Party of England and Wales": "#6ab023",
+  "Scottish National Party (SNP)": "#fdf38e",
+  "Plaid Cymru - The Party of Wales": "#005b54",
+  "Reform UK": "#12b6cf",
+  "UK Independence Party (UKIP)": "#70147a",
+  "Social Democratic Party (SDP)": "#d6192a",
+  "Independent": "#9e9e9e"
+};
 
 Papa.parse(CSV_URL, {
   download: true,
@@ -181,6 +194,27 @@ function getPartyForID(id) {
   return idToParty[id.toLowerCase()] || "#";
 }
 
+function getPartyColor(party) {
+  if (partyColors[party]) return partyColors[party];
+  // fallback: stable hash color
+  const hash = [...party].reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hue = hash % 360;
+  return `hsl(${hue}, 45%, 70%)`;
+}
+
+function getContrastColor(bgColor) {
+  if (bgColor.startsWith("hsl")) {
+    return "#111";
+  }
+  const hex = bgColor.replace("#", "");
+  if (hex.length !== 6) return "#111";
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? "#111" : "#fff";
+}
+
 function updateTypePanel(typeMatches) {
   const panel = document.getElementById("typePanel");
 
@@ -197,6 +231,12 @@ function updateTypePanel(typeMatches) {
     const div = document.createElement("div");
     div.className = "type-entry";
     div.textContent = `${type}: ${count} / ${total}`;
+    const bg = getPartyColor(type);
+    div.style.backgroundColor = bg;
+    div.style.color = getContrastColor(bg);
+    div.style.borderRadius = "6px";
+    div.style.padding = "4px 8px";
+    div.style.marginBottom = "6px";
 
     // Make it clickable
     div.style.cursor = "pointer";
@@ -415,7 +455,9 @@ function runSearch() {
       
       typeMatches[party] = (typeMatches[party] || 0) + 1;
       
-      fileDiv.innerHTML = `<h2>📄 <a href="${person_website}" target="_blank">${name}</a> (${party}) </h2>`;
+      const partyColor = getPartyColor(party);
+      const partyText = getContrastColor(partyColor);
+      fileDiv.innerHTML = `<h2>📄 <a href="${person_website}" target="_blank">${name}</a> <span class="party-pill" style="background-color:${partyColor};color:${partyText};">(${party})</span></h2>`;
       matches.forEach(match => {
         const section = document.createElement("details");
         const summary = document.createElement("summary");

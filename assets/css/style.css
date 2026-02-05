@@ -18,6 +18,14 @@ input {
   border-bottom: 1px solid #ccc;
 }
 
+.party-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.9em;
+  vertical-align: middle;
+}
+
 details {
   margin-left: 1rem;
   margin-bottom: 0.5rem;
