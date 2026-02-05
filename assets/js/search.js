@@ -444,6 +444,8 @@ function exportResults() {
 const modeSelect = document.getElementById("searchModeSelect");
 if (modeSelect) {
   modeSelect.addEventListener("change", () => {
-    if (searchTerms.length > 0) runSearch();
+    if (searchTerms.length > 0) {
+      ensureDataLoaded().then(runSearch);
+    }
   });
 }

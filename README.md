@@ -1,3 +1,14 @@
+
+# This fork
+
+## Loading times
+I have made some internal changes to allow the website to load faster. I have also caused it to load only after the first search item is inputted, which feels better to me personally. 
+
+
+## Search options
+I added a toggle next to the search bar which allows either 'and' or 'or' options in search.
+
+
 # candidate-website-data
 
 The following repository holds data from candidate websites which was scraped in April, 2025. The candidate list was obtained from https://candidates.democracyclub.org.uk/.
@@ -12,7 +23,7 @@ The data for each candidate website can be found inder /assets/json (and assets/
 
 There is a simple front end that can be viewed at . You are able to search for terms and see which candidate (from which party) has text containing this term. There is also an export csv button to generate a csv with this data.
 
-# Future work
+## Future work
 
 Website:
 Below is a list of possible suggestions:
@@ -24,3 +35,6 @@ Below is a list of possible suggestions:
 
 Analysis:
 * The scraped data is available here in full, which also allows for an analysis of the candidades websites.
+
+
+
