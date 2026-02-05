@@ -19,6 +19,28 @@ The following repository holds data from candidate websites which was scraped in
 
 The data for each candidate website can be found inder /assets/json (and assets/large_json for larger jsons which are not visualised here on github pages). They contain information about each section of the persons website alongside the raw text that was scraped.
 
+## Scraper (missing candidates)
+
+There is a polite scraper script at `docs/scripts/scrape_missing.py` to collect data for candidates missing JSON files. It:
+* Only crawls within each candidate’s own domain
+* Respects `robots.txt` by default
+* Rate-limits requests (default 1 second between requests per domain)
+* Writes one JSON file per candidate into `assets/json/`
+
+Basic usage (from repo root):
+
+```bash
+python docs/scripts/scrape_missing.py --max-pages 50 --delay 1
+```
+
+Optional: limit to a small batch while testing:
+
+```bash
+python docs/scripts/scrape_missing.py --limit 10
+```
+
+If you need JavaScript-rendered sites, we can add a Playwright mode.
+
 ## Github page
 
 There is a simple front end that can be viewed at . You are able to search for terms and see which candidate (from which party) has text containing this term. There is also an export csv button to generate a csv with this data.
@@ -35,6 +57,5 @@ Below is a list of possible suggestions:
 
 Analysis:
 * The scraped data is available here in full, which also allows for an analysis of the candidades websites.
-
 
 
