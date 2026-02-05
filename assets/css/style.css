@@ -49,6 +49,15 @@ details {
 .search-container {
   margin-top: 1rem;
 }
+.search-mode {
+  margin-top: 8px;
+  font-size: 0.95rem;
+}
+
+.search-mode label {
+  margin-right: 12px;
+  cursor: pointer;
+}
 
 .main-content {
   display: flex;
@@ -151,4 +160,3 @@ details {
   text-align: center;
   font-family: sans-serif;
 }
-

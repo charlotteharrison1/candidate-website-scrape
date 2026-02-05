@@ -299,6 +299,11 @@ function renderInSandboxedIframe(htmlString, container) {
   container.appendChild(iframe);
 }
 
+function getSearchMode() {
+  const checked = document.querySelector('input[name="searchMode"]:checked');
+  return checked ? checked.value : "all";
+}
+
 function ensureDataLoaded() {
   if (dataLoaded) return Promise.resolve();
   if (!dataLoading) {
@@ -328,6 +333,8 @@ function runSearch() {
     return;
   }
 
+  const mode = getSearchMode(); // "all" or "any"
+
   for (const [filename, content] of Object.entries(allData)) {
     let matches = [];
     const [name, id] = getDisplayName(filename);
@@ -339,8 +346,10 @@ function runSearch() {
       const cachedText = textCache[filename]?.[subpath] || "";
       const textLower = cachedText.toLowerCase();
       const containsAll = searchTerms.every(term => textLower.includes(term));
+      const containsAny = searchTerms.some(term => textLower.includes(term));
+      const isMatch = mode === "all" ? containsAll : containsAny;
 
-      if (containsAll) {
+      if (isMatch) {
         matches.push({ subpath, text });
         currentMatches.push({
         candidate: name,
@@ -432,3 +441,9 @@ function exportResults() {
 }
 
 // Lazy-load data on first search
+
+document.querySelectorAll('input[name="searchMode"]').forEach(radio => {
+  radio.addEventListener("change", () => {
+    if (searchTerms.length > 0) runSearch();
+  });
+});

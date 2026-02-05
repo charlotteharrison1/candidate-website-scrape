@@ -20,6 +20,16 @@ layout: null
     <input id="searchBox" type="text" placeholder="Enter search term(s), comma-separated">
     <button onclick="addSearchTerms()">Add</button>
     <button id="exportButton" onclick="exportResults()" disabled>Export CSV</button>
+    <div class="search-mode">
+      <label>
+        <input type="radio" name="searchMode" value="all" checked>
+        AND
+      </label>
+      <label>
+        <input type="radio" name="searchMode" value="any">
+        OR
+      </label>
+    </div>
     <div id="searchTerms"></div>
   </div>
   
@@ -60,4 +70,3 @@ layout: null
   <script src="{{ site.baseurl }}/assets/js/search.js"></script>
 </body>
 </html>
-
