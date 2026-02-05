@@ -258,15 +258,68 @@ function highlightAndAppend(text, container) {
   }
 }
 
-function renderInSandboxedIframe(htmlString, container) {
-  // Create sandboxed iframe
-  const iframe = document.createElement('iframe');
-  iframe.setAttribute('sandbox', ''); // no scripts, no network, fully isolated
-  iframe.style.width = '100%';
-  iframe.style.border = '1px solid #ccc';
-  iframe.style.minHeight = '200px';
-  iframe.loading = 'lazy';
+function escapeHtml(value) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
+function highlightPlainTextToHtml(text) {
+  if (searchTerms.length === 0) {
+    return escapeHtml(text);
+  }
+
+  const regex = new RegExp(searchTerms.map(escapeRegExp).join("|"), "gi");
+  let result = "";
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      result += escapeHtml(text.slice(lastIndex, match.index));
+    }
+
+    const term = match[0].toLowerCase();
+    const color = termColors[term].replace("hsl", "hsla").replace(")", ", 0.3)");
+    result += `<span style="background-color: ${color}; font-weight: bold;">${escapeHtml(match[0])}</span>`;
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    result += escapeHtml(text.slice(lastIndex));
+  }
+
+  return result;
+}
+
+function buildHighlightedHtmlWithLinks(text) {
+  const urlRegex = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+  let result = "";
+  let lastIndex = 0;
+  let match;
+
+  while ((match = urlRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      result += highlightPlainTextToHtml(text.slice(lastIndex, match.index));
+    }
+
+    const rawUrl = match[0];
+    const href = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
+    result += `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(rawUrl)}</a>`;
+    lastIndex = urlRegex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    result += highlightPlainTextToHtml(text.slice(lastIndex));
+  }
+
+  return result;
+}
+
+function renderHighlightedText(htmlString, container) {
   // Strip dangerous tags first
   let sanitized = htmlString
     .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
@@ -281,22 +334,10 @@ function renderInSandboxedIframe(htmlString, container) {
   const doc = parser.parseFromString(sanitized, "text/html");
   const textOnly = doc.body.textContent || "";
 
-  // Apply highlight (produces safe HTML with <span> wrappers)
-  const highlightedHTML = highlightText(textOnly);
-
-  // Now embed that as inert HTML inside the iframe
-  iframe.srcdoc = `
-    <html>
-      <body style="font-family:sans-serif;white-space:pre-wrap;">${highlightedHTML}</body>
-    </html>`;
-
-  iframe.onload = () => {
-    const doc = iframe.contentDocument;
-    if (!doc) return;
-    iframe.style.height = doc.body.scrollHeight + "px";
-  };
-
-  container.appendChild(iframe);
+  const wrapper = document.createElement("div");
+  wrapper.className = "result-text";
+  wrapper.innerHTML = buildHighlightedHtmlWithLinks(textOnly);
+  container.appendChild(wrapper);
 }
 
 function getSearchMode() {
@@ -383,7 +424,7 @@ function runSearch() {
         
         const contentContainer = document.createElement("div");
 
-        renderInSandboxedIframe(match.text, contentContainer);
+        renderHighlightedText(match.text, contentContainer);
 
         section.appendChild(summary);
         section.appendChild(contentContainer);

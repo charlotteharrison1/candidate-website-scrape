@@ -23,6 +23,19 @@ details {
   margin-bottom: 0.5rem;
 }
 
+.result-text {
+  border: 1px solid #ccc;
+  font-family: sans-serif;
+  padding: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.result-text a {
+  color: #0b57d0;
+  text-decoration: underline;
+}
+
 #searchTerms {
   margin: 1rem 0;
 }
