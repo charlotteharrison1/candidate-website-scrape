@@ -1,3 +1,3 @@
 title: Candidate website search
-baseurl: "/candidate-website-scrape"   # replace with your actual repo name
+baseurl: "/candidate-website-scrape/"   # replace with your actual repo name
 url: "https://charlotteharrison1.github.io"
