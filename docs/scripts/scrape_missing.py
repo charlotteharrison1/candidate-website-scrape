@@ -14,6 +14,8 @@ import re
 import sys
 import time
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 from urllib.parse import urljoin, urlparse, urldefrag
 from urllib.robotparser import RobotFileParser
 
@@ -107,7 +109,7 @@ def can_fetch_url(rp, user_agent, url):
         return False
 
 
-def crawl_site(start_url, max_pages, delay, timeout, user_agent, respect_robots, exclude_patterns):
+def crawl_site(start_url, max_pages, delay, timeout, user_agent, respect_robots, exclude_patterns, throttle=None):
     parsed = urlparse(start_url)
     base = f"{parsed.scheme}://{parsed.netloc}"
 
@@ -126,8 +128,6 @@ def crawl_site(start_url, max_pages, delay, timeout, user_agent, respect_robots,
     seen = set()
     queue = deque([start_url])
     results = {}
-    last_request_time = 0.0
-
     while queue and len(results) < max_pages:
         url = queue.popleft()
         url = normalize_url(url)
@@ -147,14 +147,11 @@ def crawl_site(start_url, max_pages, delay, timeout, user_agent, respect_robots,
         if respect_robots and rp and not can_fetch_url(rp, user_agent, url):
             continue
 
-        # polite delay per domain
-        elapsed = time.time() - last_request_time
-        if elapsed < delay:
-            time.sleep(delay - elapsed)
+        if throttle:
+            throttle(parsed.netloc, delay)
 
         try:
             resp = session.get(url, timeout=timeout, allow_redirects=True)
-            last_request_time = time.time()
         except requests.RequestException:
             continue
 
@@ -197,8 +194,16 @@ def main():
     parser.add_argument("--ignore-robots", action="store_true")
     parser.add_argument("--exclude-file", default=None)
     parser.add_argument("--limit", type=int, default=None, help="Limit number of candidates to scrape.")
+    parser.add_argument("--workers", type=int, default=4, help="Number of candidates to scrape in parallel.")
+    parser.add_argument("--fast", action="store_true",
+                        help="Preset for faster runs: --max-pages 15 --delay 0.3 --workers 6")
 
     args = parser.parse_args()
+
+    if args.fast:
+        args.max_pages = 15
+        args.delay = 0.3
+        args.workers = 6
 
     respect_robots = args.respect_robots and not args.ignore_robots
     json_dirs = [d.strip() for d in args.json_dirs.split(",") if d.strip()]
@@ -212,21 +217,35 @@ def main():
     os.makedirs(args.json_dir, exist_ok=True)
 
     print(f"Missing candidates to scrape: {len(missing)}")
-    for i, row in enumerate(missing, start=1):
+
+    throttle_lock = Lock()
+    last_request_by_domain = {}
+
+    def throttle(domain, delay):
+        if delay <= 0:
+            return
+        now = time.time()
+        with throttle_lock:
+            last_time = last_request_by_domain.get(domain, 0.0)
+            wait = max(0.0, (last_time + delay) - now)
+            # reserve the next slot to avoid stampede across threads
+            last_request_by_domain[domain] = now + wait
+        if wait > 0:
+            time.sleep(wait)
+
+    def process_candidate(idx, total, row):
         pid = str(row.get("person_id") or "").strip()
         name = row.get("person_name") or "unknown"
         homepage = normalize_url(row.get("homepage_url") or "")
         if not homepage:
-            print(f"[{i}/{len(missing)}] Skipping {pid} {name}: no homepage_url")
-            continue
+            return f"[{idx}/{total}] Skipping {pid} {name}: no homepage_url"
 
         out_name = safe_filename(pid, name)
         out_path = os.path.join(args.json_dir, out_name)
         if os.path.exists(out_path):
-            print(f"[{i}/{len(missing)}] Skipping {pid} {name}: already scraped")
-            continue
+            return f"[{idx}/{total}] Skipping {pid} {name}: already scraped"
 
-        print(f"[{i}/{len(missing)}] Scraping {pid} {name} -> {homepage}")
+        msg = f"[{idx}/{total}] Scraping {pid} {name} -> {homepage}"
         data = crawl_site(
             start_url=homepage,
             max_pages=args.max_pages,
@@ -235,14 +254,28 @@ def main():
             user_agent=args.user_agent,
             respect_robots=respect_robots,
             exclude_patterns=exclude_patterns,
+            throttle=throttle,
         )
 
         if not data:
-            print(f"  No pages scraped for {pid} {name}")
-            continue
+            return f"{msg}\n  No pages scraped for {pid} {name}"
 
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+
+        return msg
+
+    if args.workers <= 1:
+        for i, row in enumerate(missing, start=1):
+            print(process_candidate(i, len(missing), row))
+    else:
+        with ThreadPoolExecutor(max_workers=args.workers) as executor:
+            futures = {
+                executor.submit(process_candidate, i, len(missing), row): i
+                for i, row in enumerate(missing, start=1)
+            }
+            for fut in as_completed(futures):
+                print(fut.result())
 
     return 0
 
