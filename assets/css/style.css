@@ -1,8 +1,8 @@
 /* Base styles */
 body {
   font-family: sans-serif;
-  margin: 2rem auto;
-  padding: 0 1rem;
+  margin: 2rem 0;
+  padding: 0;
   line-height: 1.5;
   text-align: center; /* center header + search */
 }
