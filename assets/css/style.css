@@ -49,14 +49,16 @@ details {
 .search-container {
   margin-top: 1rem;
 }
-.search-mode {
-  margin-top: 8px;
-  font-size: 0.95rem;
+.search-mode-label {
+  margin-left: 6px;
+  margin-right: 4px;
+  font-size: 0.9rem;
+  color: #444;
 }
 
-.search-mode label {
-  margin-right: 12px;
-  cursor: pointer;
+.search-mode-select {
+  padding: 4px 6px;
+  font-size: 0.9rem;
 }
 
 .main-content {

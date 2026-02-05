@@ -19,17 +19,12 @@ layout: null
 <div class="search-container">
     <input id="searchBox" type="text" placeholder="Enter search term(s), comma-separated">
     <button onclick="addSearchTerms()">Add</button>
+    <label class="search-mode-label" for="searchModeSelect">Mode</label>
+    <select id="searchModeSelect" class="search-mode-select">
+      <option value="all" selected>AND</option>
+      <option value="any">OR</option>
+    </select>
     <button id="exportButton" onclick="exportResults()" disabled>Export CSV</button>
-    <div class="search-mode">
-      <label>
-        <input type="radio" name="searchMode" value="all" checked>
-        AND
-      </label>
-      <label>
-        <input type="radio" name="searchMode" value="any">
-        OR
-      </label>
-    </div>
     <div id="searchTerms"></div>
   </div>
   

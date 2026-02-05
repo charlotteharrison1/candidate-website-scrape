@@ -300,8 +300,8 @@ function renderInSandboxedIframe(htmlString, container) {
 }
 
 function getSearchMode() {
-  const checked = document.querySelector('input[name="searchMode"]:checked');
-  return checked ? checked.value : "all";
+  const select = document.getElementById("searchModeSelect");
+  return select ? select.value : "all";
 }
 
 function ensureDataLoaded() {
@@ -441,9 +441,9 @@ function exportResults() {
 }
 
 // Lazy-load data on first search
-
-document.querySelectorAll('input[name="searchMode"]').forEach(radio => {
-  radio.addEventListener("change", () => {
+const modeSelect = document.getElementById("searchModeSelect");
+if (modeSelect) {
+  modeSelect.addEventListener("change", () => {
     if (searchTerms.length > 0) runSearch();
   });
-});
+}
