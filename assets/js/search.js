@@ -6,6 +6,9 @@ let idToParty = {}; // dictionary for fast lookup
 const totalPartyCounts = {};
 let activeTypeFilter = null;
 let currentMatches = [];
+let textCache = {}; // { file: { subpath: textOnly } }
+let dataLoaded = false;
+let dataLoading = null;
 
 Papa.parse(CSV_URL, {
   download: true,
@@ -21,6 +24,31 @@ Papa.parse(CSV_URL, {
   }
 });
 
+async function fetchWithLimit(files, limit, onProgress) {
+  let i = 0;
+  const results = new Array(files.length);
+
+  async function worker() {
+    while (i < files.length) {
+      const idx = i++;
+      const file = files[idx];
+      try {
+        const response = await fetch(file);
+        const data = await response.json();
+        results[idx] = { file, data };
+      } catch (err) {
+        console.error("Failed to load", file, err);
+      } finally {
+        if (onProgress) onProgress(idx + 1, files.length);
+      }
+    }
+  }
+
+  const workers = Array.from({ length: limit }, worker);
+  await Promise.all(workers);
+  return results.filter(Boolean);
+}
+
 async function loadData() {
   const addButton = document.querySelector(".search-container button");
   const loadingIndicator = document.getElementById("loadingIndicator");
@@ -32,28 +60,27 @@ async function loadData() {
 
   const totalFiles = jsonFiles.length;
 
-  for (let i = 0; i < totalFiles; i++) {
-    const file = jsonFiles[i];
-    try {
-      const response = await fetch(file);
-      const data = await response.json();
+  const loaded = await fetchWithLimit(jsonFiles, 8, (done, total) => {
+    const progress = (done / total) * 125.6; // full dasharray
+    spinnerFg.style.strokeDashoffset = 125.6 - progress;
+  });
 
-      for (const key in data) {
-        if (data[key] == null) data[key] = "";
-      }
-      allData[file] = data;
-
-      const [name, id] = getDisplayName(file);
-      const party = getPartyForID(id);
-      totalPartyCounts[party] = (totalPartyCounts[party] || 0) + 1;
-
-      // Update spinner progress
-      const progress = ((i + 1) / totalFiles) * 125.6; // full dasharray
-      spinnerFg.style.strokeDashoffset = 125.6 - progress;
-
-    } catch (err) {
-      console.error("Failed to load", file, err);
+  for (const { file, data } of loaded) {
+    for (const key in data) {
+      if (data[key] == null) data[key] = "";
     }
+    allData[file] = data;
+
+    // Precompute text-only cache for faster searching
+    for (const [subpath, html] of Object.entries(data)) {
+      if (typeof html !== "string") continue;
+      if (!textCache[file]) textCache[file] = {};
+      textCache[file][subpath] = getTextOnly(html);
+    }
+
+    const [name, id] = getDisplayName(file);
+    const party = getPartyForID(id);
+    totalPartyCounts[party] = (totalPartyCounts[party] || 0) + 1;
   }
 
   // Hide spinner and re-enable Add button
@@ -89,7 +116,7 @@ function addSearchTerms() {
 
   input.value = "";
   renderSearchTerms();
-  runSearch();
+  ensureDataLoaded().then(runSearch);
 }
 
 function removeSearchTerm(term) {
@@ -272,8 +299,21 @@ function renderInSandboxedIframe(htmlString, container) {
   container.appendChild(iframe);
 }
 
+function ensureDataLoaded() {
+  if (dataLoaded) return Promise.resolve();
+  if (!dataLoading) {
+    dataLoading = loadData().then(() => {
+      dataLoaded = true;
+    });
+  }
+  return dataLoading;
+}
 
 function runSearch() {
+  if (!dataLoaded) {
+    ensureDataLoaded().then(runSearch);
+    return;
+  }
   const resultsDiv = document.getElementById("results");
   resultsDiv.innerHTML = "";
   
@@ -296,7 +336,8 @@ function runSearch() {
     for (const [subpath, text] of Object.entries(content)) {
       if (typeof text !== "string") continue;
 
-      const textLower = text.toLowerCase();
+      const cachedText = textCache[filename]?.[subpath] || "";
+      const textLower = cachedText.toLowerCase();
       const containsAll = searchTerms.every(term => textLower.includes(term));
 
       if (containsAll) {
@@ -390,5 +431,4 @@ function exportResults() {
   URL.revokeObjectURL(url);
 }
 
-loadData();
-
+// Lazy-load data on first search
